@@ -1,0 +1,39 @@
+@startuml
+
+participant "CRM API" as CRM
+queue "Rabbit MQ" as Queue
+participant "MES API" as API
+participant "MES" as System
+participant "Redis Cache" as Cache
+database "MES DB" as DB
+
+CRM -> Queue: Статус заказа \n"SUBMITTED"
+Queue -> API: Новый заказ из CRM
+API -> DB: [Запись] Новый заказ
+
+loop каждые 5 минут
+    DB ->  Cache: Актуальный перечень заказов
+end loop
+
+Cache -> API: [Чтение] Актуальный перечень заказов
+loop каждые 5 минут
+API -> System: Актуальный перечень заказов
+end loop
+System -> API: [Охлаждение] \nОтобразить на 10 минут \n"оператор начал анализ заказа" 
+
+System -> API: Статус заказа \n"MANUFACTURING_STARTED"
+API -> DB: [Запись] Статус заказа \n"MANUFACTURING_STARTED"
+API -> Queue: Для CRM \n"MANUFACTURING_STARTED"
+Queue -> CRM: Статус заказа \n"MANUFACTURING_STARTED"
+
+System -> API: Статус заказа \n"PACKAGING"
+API -> DB: [Запись] Статус заказа \n"PACKAGING"
+API -> Queue: Для CRM \n"PACKAGING"
+Queue -> CRM: Статус заказа \n"PACKAGING"
+
+System -> API: Статус заказа \n"SHIPPED"
+API -> DB: [Запись] Статус заказа \n"SHIPPED"
+API -> Queue: Для CRM \n"SHIPPED"
+Queue -> CRM: Статус заказа \n"SHIPPED"
+
+@enduml
